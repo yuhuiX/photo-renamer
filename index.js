@@ -14,48 +14,51 @@ const path = require('path');
     fs
       .readdir(dirAbsPath)
       .then((fileNames) => {
-        let renameFileProcessPromises = Promise.resolve();
-        fileNames.forEach((fileName, index) => {
+        const fileNamingPromises = [];
+        const fileNamingMapping = {};
+        fileNames.forEach((fileName) => {
           if (!fileName.startsWith('.')) {
-            renameFileProcessPromises = renameFileProcessPromises.then(() => {
-              const oldFilePath = path.resolve(dirAbsPath, fileName);
+            const oldFilePath = path.resolve(dirAbsPath, fileName);
 
-              return new Promise((resolve, reject) => {
-                fs
-                  .stat(oldFilePath)
-                  .then((stat) => {
-                    const newFilePathWithoutExtension = getNewFilePathWithoutExtension({
-                      dirAbsPath: dirAbsPath,
-                      birthtimeMs: stat.birthtimeMs,
-                    });
-                    const fileExtension = path.extname(fileName);
+            fileNamingPromises.push(
+              fs
+                .stat(oldFilePath)
+                .then((stat) => {
+                  const fileExtension = path.extname(fileName);
+                  const oldFilePathWithoutExtension = path.basename(fileName, fileExtension);
+                  const newFileNameWithoutExtension = getNewFilePathWithoutExtension(stat.birthtimeMs);
 
-                    const expectedNewFilePath = `${newFilePathWithoutExtension}${fileExtension}`;
-                    fs
-                      .stat(expectedNewFilePath)
-                      .then(() => {
-                        renameFile({
-                          newFilePath: `${newFilePathWithoutExtension}_${index}${fileExtension}`,
-                          oldFilePath,
-                          reject,
-                          resolve,
-                        });
-                      })
-                      .catch(() => {
-                        renameFile({
-                          newFilePath: expectedNewFilePath,
-                          oldFilePath,
-                          reject,
-                          resolve,
-                        });
-                      });
-                    });
-              });
-            });
+                  const expectedNewFileName = `${newFileNameWithoutExtension} ${oldFilePathWithoutExtension}${fileExtension}`;
+                  fileNamingMapping[oldFilePath] = expectedNewFileName;
+                })
+            );
           }
         });
 
-        return renameFileProcessPromises;
+        return Promise
+          .all(fileNamingPromises)
+          .then(() => {
+            return fileNamingMapping;
+          });
+      })
+      .then((fileNamingMapping) => {
+        const fileRenamingPromises = [];
+        Object.entries(fileNamingMapping).forEach(([oldFilePath, newFileName]) => {
+          const oldFileName = path.basename(oldFilePath);
+          const newFilePath = path.resolve(path.dirname(oldFilePath), newFileName);
+          fileRenamingPromises.push(
+            fs
+              .rename(oldFilePath, newFilePath)
+              .then(() => {
+                console.log(`"${oldFileName}" renamed as "${newFileName}"`);
+              })
+          );
+        });
+
+        return Promise.all(fileRenamingPromises);
+      })
+      .then(() => {
+        console.log('All files have been renamed successfully');
       })
       .catch((err) => {
         console.log(err);
@@ -69,10 +72,7 @@ function formatDateString(number) {
   return ('0' + number).slice(-2);
 }
 
-function getNewFilePathWithoutExtension(options) {
-  const dirAbsPath = options.dirAbsPath;
-  const birthtimeMs = options.birthtimeMs;
-
+function getNewFilePathWithoutExtension(birthtimeMs) {
   const birthtimeDate = new Date(birthtimeMs);
 
   const dateString = formatDateString(birthtimeDate.getDate());
@@ -82,26 +82,5 @@ function getNewFilePathWithoutExtension(options) {
   const minutesString = formatDateString(birthtimeDate.getMinutes());
   const secondsString = formatDateString(birthtimeDate.getSeconds());
 
-  const newFileName = `${yearString}.${monthString}.${dateString} ${hoursString}${minutesString}${secondsString}`;
-  return path.resolve(dirAbsPath, newFileName);
-}
-
-function renameFile(options) {
-  const newFilePath = options.newFilePath;
-  const oldFilePath = options.oldFilePath;
-  const reject = options.reject;
-  const resolve = options.resolve;
-
-  const oldFileName = path.basename(oldFilePath);
-  const newFileName = path.basename(newFilePath);
-
-  fs
-    .rename(oldFilePath, newFilePath)
-    .then(() => {
-      console.log(`${oldFileName} renamed as ${newFileName}`);
-      resolve();
-    })
-    .catch((err) => {
-      reject(err);
-    });
+  return `${yearString}.${monthString}.${dateString} ${hoursString}${minutesString}${secondsString}`;
 }
