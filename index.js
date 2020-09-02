@@ -10,6 +10,13 @@ const path = require('path');
     }
   });
 
+  let place;
+  args.forEach((val, index) => {
+    if (val === '--place' && args[index + 1]) {
+      place = args[index + 1];
+    }
+  });
+
   if (dirAbsPath) {
     fs
       .readdir(dirAbsPath)
@@ -26,7 +33,10 @@ const path = require('path');
                 .then((stat) => {
                   const fileExtension = path.extname(fileName);
                   const oldFilePathWithoutExtension = path.basename(fileName, fileExtension);
-                  const newFileNameWithoutExtension = getNewFilePathWithoutExtension(stat.birthtimeMs);
+                  const newFileNameWithoutExtension = getNewFilePathWithoutExtension({
+                    birthtimeMs: stat.birthtimeMs,
+                    place,
+                  });
 
                   const expectedNewFileName = `${newFileNameWithoutExtension} ${oldFilePathWithoutExtension}${fileExtension}`;
                   fileNamingMapping[oldFilePath] = expectedNewFileName;
@@ -72,7 +82,10 @@ function formatDateString(number) {
   return ('0' + number).slice(-2);
 }
 
-function getNewFilePathWithoutExtension(birthtimeMs) {
+function getNewFilePathWithoutExtension(options) {
+  const birthtimeMs = options.birthtimeMs;
+  const place = options.place;
+
   const birthtimeDate = new Date(birthtimeMs);
 
   const dateString = formatDateString(birthtimeDate.getDate());
@@ -82,5 +95,5 @@ function getNewFilePathWithoutExtension(birthtimeMs) {
   const minutesString = formatDateString(birthtimeDate.getMinutes());
   const secondsString = formatDateString(birthtimeDate.getSeconds());
 
-  return `${yearString}.${monthString}.${dateString} ${hoursString}${minutesString}${secondsString}`;
+  return `${yearString}.${monthString}.${dateString} ${hoursString}${minutesString}${secondsString}` + (place ? ` ${place}` : '');
 }
