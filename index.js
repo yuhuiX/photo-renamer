@@ -17,6 +17,13 @@ const path = require('path');
     }
   });
 
+  let preview;
+  args.forEach((val, index) => {
+    if (val === '--preview' && args[index + 1]) {
+      preview = (args[index + 1] === 'true');
+    }
+  });
+
   if (dirAbsPath) {
     fs
       .readdir(dirAbsPath)
@@ -55,20 +62,27 @@ const path = require('path');
         const fileRenamingPromises = [];
         Object.entries(fileNamingMapping).forEach(([oldFilePath, newFileName]) => {
           const oldFileName = path.basename(oldFilePath);
-          const newFilePath = path.resolve(path.dirname(oldFilePath), newFileName);
-          fileRenamingPromises.push(
-            fs
-              .rename(oldFilePath, newFilePath)
-              .then(() => {
-                console.log(`"${oldFileName}" renamed as "${newFileName}"`);
-              })
-          );
+
+          if (preview) {
+            console.log(`"${oldFileName}" will be renamed as "${newFileName}"`);
+          } else {
+            const newFilePath = path.resolve(path.dirname(oldFilePath), newFileName);
+            fileRenamingPromises.push(
+              fs
+                .rename(oldFilePath, newFilePath)
+                .then(() => {
+                  console.log(`"${oldFileName}" renamed as "${newFileName}"`);
+                })
+            );
+          }
         });
 
         return Promise.all(fileRenamingPromises);
       })
       .then(() => {
-        console.log('All files have been renamed successfully');
+        if (!preview) {
+          console.log('All files have been renamed successfully');
+        }
       })
       .catch((err) => {
         console.log(err);

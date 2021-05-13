@@ -12,3 +12,4 @@ If `IMG_1234.jpg` was shot at 2008.08.24 13:24:50 (Europe/Berlin)
 | -- | -- |
 | --dirAbsPath | absolute path to the directory |
 | --place | where the iamge is shot, could be the country, city, or event name |
+| --preview | (_Optional_) If value is "true", print out the new file names, without actually renaming them |
